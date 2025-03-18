@@ -55,7 +55,10 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.verifyPassword = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
-userSchema.methods.generateAccessToken = function () {
+userSchema.methods.generateAccessToken =async function () {
+  if (!this._id) {
+    throw new Error("User ID is missing. Cannot generate token.");
+  }
   return jwt.sign(
     {
       _id: this._id,
@@ -66,11 +69,11 @@ userSchema.methods.generateAccessToken = function () {
 
     process.env.ACCESS_TOKEN_SECRET,
     {
-      expiresIn: ACCESS_TOKEN_EXPIPY
+      expiresIn: process.env.ACCESS_TOKEN_EXPIPY
     }
   );
 };
-userSchema.methods.generateRefreshToken = function () {
+userSchema.methods.generateRefreshToken =async  function () {
     return jwt.sign(
       {
         _id: this._id,
@@ -78,7 +81,7 @@ userSchema.methods.generateRefreshToken = function () {
   
       process.env.REFRESH_TOKEN_SECRET,
       {
-        expiresIn: REFRESH_TOKEN_EXPIPY
+        expiresIn: process.env.REFRESH_TOKEN_EXPIPY
       }
     );
   };
