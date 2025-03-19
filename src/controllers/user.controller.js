@@ -4,6 +4,7 @@ import { apiresponse } from "../utils/apiresponse.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.service.js";
 import jwt from "jsonwebtoken";
+import { Aggregate } from "mongoose";
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -257,6 +258,18 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   if (!avatarLocalPath) {
     throw new apierror(400, "Avatar file is missing");
   }
+  const user1 = await User.findById(req.user?._id);
+  if (!user) {
+    throw new apierror(404, "User not found");
+  }
+
+  // Delete the old avatar from Cloudinary
+  if (user1.avatar) {
+    const publicId = user1.avatar.split('/').pop().split('.')[0]; // Extract public ID from URL
+    await uploadOnCloudinary.delete(publicId).catch((err) => {
+      console.error("Error deleting old avatar:", err.message);
+    });
+  }
   const avatar = await uploadOnCloudinary(avatarLocalPath);
   if (!avatar.url) {
     throw new apierror(401, "Error while uploading avatar");
@@ -300,6 +313,69 @@ const updateCoverImage = asyncHandler(async (req, res) => {
     .status(200)
     .json(new apiresponse(200, user, "Cover Image updated successfully"));
 });
+
+const getUserProfile = asyncHandler(async(req,res)=>{
+  const {username} = req.params;
+  if(!username){
+    throw new apierror(400,'username is missing')
+  }
+  const channel =await  User.aggregate([{
+    $match:{
+      username:username?.toLowerCase()
+    }
+  },{ $lookup:{
+      from:'subscriptions',
+      localField:'subscriber',
+      foreignField:'channel',
+      as:'subscribers'
+    }
+  },
+  {
+    $lookup:{
+      from:'subscriptions',
+      localField:'_id',
+      foreignField:'subscriber',
+      as:'subscribedTo'
+    }
+  },
+    {
+      $addFields:{
+        subscriberCount:{
+          $size:'$subscriber'
+
+        },channelSubscribedToCount:{
+          $size:'$subscribedTo'
+        },
+        
+          isSubscribed:{
+            $cond:{
+              if:{$in:[req.user?._id,'$subscribers.subscriber']},
+              then:true,
+              else:false
+            }
+          }
+        }
+
+  },
+{
+  $project:{
+    username:1,
+    fullName:1,
+    subscriberCount:1,
+    channelSubscribedToCount:1,
+    isSubscribed:1,
+    email:1,
+    avatar:1,
+    coverImage:1
+  }
+}])
+if(!channel?.lentgh){
+  throw new apierror(404,'Channel doesnot exist')
+}
+res.status(201)
+.json(new apiresponse(200, channel[0],'User channel fetched successfully'))
+
+})
 export {
   registerUser,
   loginUser,
