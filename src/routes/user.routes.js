@@ -19,7 +19,7 @@ router.route('/register').post(
     router.route('/logout').post(verifyJwt, logOutUser)
     router.route('/refresh-token').post(accessRefreshToken)
     router.route('/change-password').post(verifyJwt,changeUserPassword)
-    router.route('/current-user').post(verifyJwt,getCurrentUser)
+    router.route('/current-user').get(verifyJwt,getCurrentUser)
     router.route('/update-account').patch(verifyJwt,updateAccountDetails)
     router.route('/avatar').patch( verifyJwt,upload.single("avatar"),updateUserAvatar)
     router.route('/cover-image').patch(verifyJwt,upload.single('coverImage'),updateCoverImage)

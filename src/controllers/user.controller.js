@@ -221,7 +221,7 @@ const changeUserPassword = asyncHandler(async (req, res) => {
     await user.save({ validateBeforeSave: true });
     return res
       .status(200)
-      .json(new apiresponse(200, "Password changed successfully"));
+      .json(new apiresponse(200, {}, "Password changed successfully"));
   } catch (error) {
     throw new apierror(400, "Error", error?.message);
   }
@@ -233,10 +233,10 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 });
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { fullName, email } = req.body;
-  if (!fullName || !email) {
+  if (!(fullName || email)) {
     throw new apierror(400, "All fields are required");
   }
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user._id,
     {
       $set: {
@@ -258,17 +258,10 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new apierror(400, "Avatar file is missing");
   }
   const user1 = await User.findById(req.user?._id);
-  if (!user) {
+  if (!user1) {
     throw new apierror(404, "User not found");
   }
 
-  // Delete the old avatar from Cloudinary
-  if (user1.avatar) {
-    const publicId = user1.avatar.split('/').pop().split('.')[0]; // Extract public ID from URL
-    await uploadOnCloudinary.delete(publicId).catch((err) => {
-      console.error("Error deleting old avatar:", err.message);
-    });
-  }
   const avatar = await uploadOnCloudinary(avatarLocalPath);
   if (!avatar.url) {
     throw new apierror(401, "Error while uploading avatar");
@@ -417,7 +410,7 @@ const getWatchHistory = asyncHandler(async(req,res)=>{
   return res
   .status(200)
   .json(
-      new ApiResponse(
+      new apiresponse(
           200,
           user[0].watchHistory,
           "Watch history fetched successfully"
